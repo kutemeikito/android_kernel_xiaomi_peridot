@@ -11,21 +11,25 @@
 # Use this script on root of kernel directory
 
 SECONDS=0 # builtin bash timer
-LOCAL_DIR=/workspace/
+DIR=`readlink -f .`
+LOCAL_DIR=`readlink -f ${DIR}/..`
 ZIPNAME="RyzenKernel-Peridot-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
-TC_DIR="${LOCAL_DIR}toolchain"
+TC_DIR="${LOCAL_DIR}/toolchain"
+LINKER="lld"
+MAKE="./makeparallel"
 CLANG_DIR="${TC_DIR}/clang-rastamod"
-GCC_64_DIR="${LOCAL_DIR}toolchain/aarch64-linux-android-4.9"
-GCC_32_DIR="${LOCAL_DIR}toolchain/arm-linux-androideabi-4.9"
+GCC_64_DIR="${LOCAL_DIR}/toolchain/aarch64-linux-android-4.9"
+GCC_32_DIR="${LOCAL_DIR}/toolchain/arm-linux-androideabi-4.9"
 AK3_DIR="${LOCAL_DIR}/AnyKernel3"
-DEFCONFIG="peridot_defconfig"
+DEFCONFIG=peridot_defconfig
 
 export PATH="$CLANG_DIR/bin:$PATH"
 export KBUILD_BUILD_USER="EdwiinKJ"
 export KBUILD_BUILD_HOST="RastaMod69"
-export LD_LIBRARY_PATH="$CLANG_DIR/lib:$LD_LIBRARY_PATH"
-export KBUILD_BUILD_VERSION="1"
-export LOCALVERSION
+export ARCH=arm64
+export SUBARCH=arm64
+export KBUILD_COMPILER_STRING="$($CLANG_DIR/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
+
 
 if ! [ -d "${CLANG_DIR}" ]; then
 echo "Clang not found! Cloning to ${TC_DIR}..."
@@ -51,31 +55,15 @@ exit 1
 fi
 fi
 
-echo -e "\nCleanup KernelSU first on local build\n"
-rm -rf KernelSU drivers/kernelsu
-
-# Set function for override kernel name and variants
-echo -e "\nKSU Support, let's Make it On\n"
-curl -kLSs "https://raw.githubusercontent.com/kutemeikito/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-git apply KernelSU-hook.patch
-
-mkdir -p out
-make O=out ARCH=arm64 $DEFCONFIG
-
 echo -e "\nStarting compilation...\n"
+make $DEFCONFIG O=out CC=clang
 make -j$(nproc --all) O=out \
-					  ARCH=arm64 \
-					  CC=clang \
-					  LD=ld.lld \
-					  AR=llvm-ar \
-					  AS=llvm-as \
-					  NM=llvm-nm \
-					  OBJCOPY=llvm-objcopy \
-					  OBJDUMP=llvm-objdump \
-					  STRIP=llvm-strip \
-					  CROSS_COMPILE=aarch64-linux-android- \
-					  CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
-					  CLANG_TRIPLE=aarch64-linux-gnu-
+                      CC=clang \
+                      ARCH=arm64 \
+                      CROSS_COMPILE=aarch64-linux-gnu- \
+                      NM=llvm-nm \
+                      OBJDUMP=llvm-objdump \
+                      STRIP=llvm-strip
 
 if [ -f "out/arch/arm64/boot/Image.gz" ]; then
 echo -e "\nKernel compiled succesfully! Zipping up...\n"
@@ -85,8 +73,7 @@ elif ! git clone -q -b peridot https://github.com/kutemeikito/AnyKernel3; then
 echo -e "\nAnyKernel3 repo not found locally and cloning failed! Aborting..."
 exit 1
 fi
-cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3
-cp out/arch/arm64/boot/dtbo.img AnyKernel3
+cp out/arch/arm64/boot/Image.gz AnyKernel3
 rm -f *zip
 cd AnyKernel3
 git checkout peridot &> /dev/null
@@ -105,6 +92,9 @@ echo -e "░█─░█ ▀▀▀ ▀─▀▀ ▀──▀ ▀▀▀ ▀▀▀
 echo -e "======================================="
 echo -e "Completed in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !"
 echo "Zip: $ZIPNAME"
+else
+echo -e "\nCompilation failed!"
+exit 1
 fi
 echo "Move Zip into Home Directory"
 mv *.zip ${LOCAL_DIR}
