@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2018 Google Limited.
  *
@@ -587,7 +586,6 @@ static struct attribute *bow_attrs[] = {
 	&attr_free.attr,
 	NULL
 };
-
 ATTRIBUTE_GROUPS(bow);
 
 static struct kobj_type bow_ktype = {
