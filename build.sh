@@ -55,6 +55,13 @@ exit 1
 fi
 fi
 
+echo -e "\nClean Up old KSU\n"
+git restore drivers/Kconfig drivers/Makefile
+rm -rf KernelSU-Next/ drivers/kernelsu
+
+echo -e "\nClone KernelSU-Next\n"
+curl -kLSs "https://raw.githubusercontent.com/kutemeikito/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+
 echo -e "\nStarting compilation...\n"
 make $DEFCONFIG O=out CC=clang
 make -j$(nproc --all) O=out \
